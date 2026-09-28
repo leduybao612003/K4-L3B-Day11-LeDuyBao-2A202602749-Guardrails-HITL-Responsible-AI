@@ -42,6 +42,19 @@ InputStatus = Literal["ALLOW", "BLOCK"]
 # Regex is one signal, not the whole security boundary.
 # ============================================================
 
+def _normalize(text: str) -> str:
+    """Canonicalize Unicode + strip invisible separators for robust matching."""
+    import unicodedata as _ud
+
+    if not text:
+        return ""
+    norm = _ud.normalize("NFKC", text)
+    # Remove zero-width / invisible chars attackers use to evade regex
+    for _ch in ("\u200b", "\u200c", "\u200d", "\ufeff", "\u2060", "\u00ad"):
+        norm = norm.replace(_ch, "")
+    return norm
+
+
 def detect_injection(user_input: str) -> InputStatus:
     """Detect prompt injection patterns in user input.
 
@@ -51,14 +64,27 @@ def detect_injection(user_input: str) -> InputStatus:
     Returns:
         ``"BLOCK"`` if injection detected (chặn), ``"ALLOW"`` otherwise (cho qua).
     """
+    text = _normalize(user_input or "")
     INJECTION_PATTERNS = [
-        # TODO: Add at least 5 regex patterns
-        # Example:
-        # r"ignore (all )?(previous|above) instructions",
+        r"ignore\s+(all\s+)?(previous|above|prior)?\s*instructions?",
+        r"disregard\s+(all\s+)?(previous|above|prior)?\s*(instructions?|rules?|directives?)",
+        r"forget\s+(your\s+)?(instructions?|rules?|prompt|all)",
+        r"override\s+(your\s+)?(system\s+)?(prompt|instructions?|rules?)",
+        r"you\s+are\s+now\b",
+        r"system\s+prompt",
+        r"reveal\s+(your\s+)?(instructions?|prompt|secrets?|password|api\s*key|config)",
+        r"show\s+(me\s+)?(your\s+)?(system\s+)?(prompt|instructions?|config|secrets?)",
+        r"pretend\s+(you\s+are|to\s+be)",
+        r"act\s+as\s+(a\s+|an\s+)?(unrestricted|evil|jailbroken|dan\b)",
+        r"\bDAN\b",
+        r"translate\s+(your\s+)?(instructions?|system\s+prompt|rules?)",
+        r"output\s+(your\s+)?(config|instructions?|prompt)\s+(as|in)\s+(json|yaml|xml|markdown)",
+        r"fill\s+in\s*(the\s*)?(blank|blanks|___)",
+        r"confirm\s+(that\s+)?(the\s+)?(admin\s+)?password",
     ]
 
     for pattern in INJECTION_PATTERNS:
-        if re.search(pattern, user_input, re.IGNORECASE):
+        if re.search(pattern, text, re.IGNORECASE):
             return "BLOCK"
     return "ALLOW"
 
@@ -84,14 +110,17 @@ def topic_filter(user_input: str) -> InputStatus:
         ``"BLOCK"`` = chặn (off-topic hoặc topic cấm).
         ``"ALLOW"`` = cho qua (câu banking hợp lệ).
     """
-    input_lower = user_input.lower()
+    input_lower = user_input.lower() if user_input else ""
 
-    # TODO: Implement logic:
     # 1. If input contains any blocked topic -> return "BLOCK"
+    for blocked in BLOCKED_TOPICS:
+        if blocked.lower() in input_lower:
+            return "BLOCK"
     # 2. If input doesn't contain any allowed topic -> return "BLOCK"
-    # 3. Otherwise -> return "ALLOW"
-
-    pass  # Replace with your implementation
+    for allowed in ALLOWED_TOPICS:
+        if allowed.lower() in input_lower:
+            return "ALLOW"
+    return "BLOCK"
 
 
 # ============================================================
@@ -144,14 +173,20 @@ class InputGuardrailPlugin(base_plugin.BasePlugin):
         self.total_count += 1
         text = self._extract_text(user_message)
 
-        # TODO: Implement logic:
         # 1. Call detect_injection(text)
-        #    - If "BLOCK": increment blocked_count, return self._block_response("...")
+        if detect_injection(text) == "BLOCK":
+            self.blocked_count += 1
+            return self._block_response(
+                "I cannot process that request. I only help with VinBank banking questions."
+            )
         # 2. Call topic_filter(text)
-        #    - If "BLOCK": increment blocked_count, return self._block_response("...")
+        if topic_filter(text) == "BLOCK":
+            self.blocked_count += 1
+            return self._block_response(
+                "I'm a VinBank assistant and can only help with banking-related questions."
+            )
         # 3. If both return "ALLOW": return None (let message through)
-
-        pass  # Replace with your implementation
+        return None
 
 
 # ============================================================
