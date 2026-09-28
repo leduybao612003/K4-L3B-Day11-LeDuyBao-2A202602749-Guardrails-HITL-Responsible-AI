@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-09-28T03:02:17.048902+00:00",
+  "generated_at": "2026-09-28T05:28:10.398779+00:00",
   "submission_dir": "E:\\K4-L3B-Day11-LeDuyBao-2A202602749-Guardrails-HITL-Responsible-AI",
-  "technical_failure": true,
+  "technical_failure": false,
   "packaging": {
-    "ok": false,
+    "ok": true,
     "details": {
       "audit": true,
       "metrics": true,
       "results": true,
-      "attack_results": false
+      "attack_results": true
     },
     "required": [
       "results",
@@ -36,11 +36,18 @@
       "rate_limit_blocked": 5,
       "rate_limit_sent": 15
     },
-    "red_team": {}
+    "red_team": {
+      "llm_provider": "gemini",
+      "llm_model": "gemini-3.5-flash",
+      "unsafe_leaks": 4,
+      "unsafe_total": 5,
+      "guards_leaks": 0,
+      "guards_total": 5
+    }
   },
   "public_tests": {
     "returncode": 0,
-    "stdout": "..........                                                               [100%]\n10 passed in 2.41s\n",
+    "stdout": "..........                                                               [100%]\n10 passed in 1.36s\n",
     "stderr": "",
     "technical_failure": false
   },
